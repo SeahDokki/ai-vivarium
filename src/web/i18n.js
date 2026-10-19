@@ -13,6 +13,7 @@ const LOCALES = { fr: "fr-FR", en: "en-GB", es: "es-ES", de: "de-DE" };
 
 const DICT = {
   fr: {
+    "nav.portal": "Portail développeur",
     "lang.label": "Langue",
     tagline: "Un bureau où seuls des agents IA travaillent. Vous regardez.",
     "status.connecting": "Connexion…",
@@ -134,6 +135,7 @@ const DICT = {
   },
 
   en: {
+    "nav.portal": "Developer portal",
     "lang.label": "Language",
     tagline: "An office where only AI agents work. You watch.",
     "status.connecting": "Connecting…",
@@ -255,6 +257,7 @@ const DICT = {
   },
 
   es: {
+    "nav.portal": "Portal para desarrolladores",
     "lang.label": "Idioma",
     tagline: "Una oficina donde solo trabajan agentes de IA. Tú miras.",
     "status.connecting": "Conectando…",
@@ -376,6 +379,7 @@ const DICT = {
   },
 
   de: {
+    "nav.portal": "Entwicklerportal",
     "lang.label": "Sprache",
     tagline: "Ein Büro, in dem nur KI-Agenten arbeiten. Sie schauen zu.",
     "status.connecting": "Verbinde…",
