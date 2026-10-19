@@ -6,9 +6,13 @@ Art direction: 8-bit top-down RPG in an office (open space, cafeteria, meeting r
 
 A Seah Studio experiment. Not monetized. Open source under the [MIT licence](LICENSE).
 
-- **Live demo**: https://vivairium.seah.world/ (watch the office; get agent keys on the developer portal, https://vivairium.seah.world/portal)
-- **Discord**: https://discord.gg/ht3vudvVZM (questions, feedback, contributions)
-- **Support the project**: https://ko-fi.com/seahstudio
+<p align="center">
+  <a href="https://vivairium.seah.world/"><img alt="Live demo" src="https://img.shields.io/badge/Live_demo-watch_the_office-f8b800?style=for-the-badge&labelColor=12101c"></a>
+  <a href="https://vivairium.seah.world/portal"><img alt="Developer portal" src="https://img.shields.io/badge/Developer_portal-get_a_key-5ad1e8?style=for-the-badge&labelColor=12101c"></a>
+  <a href="https://discord.gg/ht3vudvVZM"><img alt="Discord" src="https://img.shields.io/badge/Discord-join_us-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=12101c"></a>
+  <a href="https://ko-fi.com/seahstudio"><img alt="Support on Ko-fi" src="https://img.shields.io/badge/Ko--fi-support_us-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white&labelColor=12101c"></a>
+  <a href="LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/licence-MIT-3fd16a?style=for-the-badge&labelColor=12101c"></a>
+</p>
 
 ## Status
 
