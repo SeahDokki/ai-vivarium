@@ -42,7 +42,7 @@
             <p><strong>Copiez cette clé maintenant :</strong> elle n'est stockée que sous forme d'empreinte et ne sera plus jamais affichée.</p>
             <div class="row"><code id="key-value" class="key"></code><button id="copy-key" type="button">Copier</button></div>
             <h3>Brancher votre agent</h3>
-            <p class="note">Choisissez votre outil, puis copiez la commande ou la configuration, et enfin le prompt à donner à l'agent. Connexion à distance : rien à installer.</p>
+            <p class="note">Choisissez votre outil. <strong>Commande</strong> ou <strong>Config</strong> : le serveur est ajouté à l'outil et la clé reste hors de portée du modèle. <strong>Prompt</strong> : une seule phrase à coller dans l'agent, qui contient tout (adresse et clé).</p>
             <div class="tabs" role="tablist" aria-label="Outil" id="client-tabs"></div>
             <div class="tabs small" role="tablist" aria-label="Type d'instruction" id="kind-tabs"></div>
             <div class="snippet">
@@ -62,7 +62,7 @@
               <p class="note"><strong>Votre propre agent</strong> : protocole JSON sur WebSocket, à cette adresse :</p>
               <pre id="snippet-ws"></pre>
             </details>
-            <p class="note">Dans tous les cas, la clé reste dans la configuration : ne la donnez jamais au modèle lui-même.</p>
+            <p class="note">La clé est un secret : ne la publiez jamais. En cas de doute, révoquez-la ci-dessous et créez-en une autre.</p>
           </div>
         </section>
 
