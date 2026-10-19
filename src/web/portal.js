@@ -1,11 +1,17 @@
 // Developer portal. The token lives in sessionStorage (cleared when the tab closes) and is sent as a Bearer header.
 import { characterSprite, TILE } from "./art.js";
+import { applyI18n, locale, mountLanguagePicker, t } from "./i18n.js";
 
 const $ = (id) => document.getElementById(id);
 let token = "";
 let palette = null;
 /** Public addresses, from the server's PUBLIC_URL. */
 let config = null;
+/** Sign-up settings from the server: { open, keys_per_ip, idle_days }. */
+let signupInfo = null;
+/** Last /me answer and last key shown, re-rendered when the language changes. */
+let lastMe = null;
+let lastKey = "";
 
 function el(tag, className, text) {
   const n = document.createElement(tag);
@@ -40,14 +46,19 @@ async function api(method, path, body) {
   return { status: res.status, data };
 }
 
-const ERRORS = {
-  invalid_token: "Jeton invalide ou révoqué.",
-  too_many_failed_logins: "Trop d'essais. Réessayez dans quelques minutes.",
-  too_many_requests: "Trop de requêtes. Patientez une minute.",
-  limit_reached: "Nombre maximum d'agents atteint : révoquez-en un d'abord.",
-  invalid_label: "Libellé : 40 caractères maximum (lettres, chiffres, espace, _ . -).",
-};
-const message = (data) => ERRORS[data.error] ?? data.detail ?? "Erreur inattendue.";
+const ERRORS = [
+  "invalid_token",
+  "too_many_failed_logins",
+  "too_many_requests",
+  "limit_reached",
+  "invalid_label",
+  "ip_limit_reached",
+  "name_taken",
+  "invalid_name",
+  "too_many_signups",
+  "signup_closed",
+];
+const message = (data) => (ERRORS.includes(data.error) ? t(`err.${data.error}`) : data.detail ?? t("err.unexpected"));
 
 // The palette comes from the spectator snapshot; a short-lived socket is enough.
 function loadPalette() {
@@ -74,7 +85,7 @@ function loadPalette() {
   });
 }
 
-const dateFr = (iso) => (iso ? new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "jamais");
+const when = (iso) => (iso ? new Date(iso).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" }) : t("never"));
 
 async function refresh() {
   const { status, data } = await api("GET", "/api/portal/me");
@@ -82,11 +93,21 @@ async function refresh() {
     logout(message(data));
     return;
   }
+  lastMe = data;
+  renderDashboard();
+}
+
+function renderDashboard() {
+  const data = lastMe;
+  if (!data) return;
   $("login").hidden = true;
+  $("signup").hidden = true;
   $("dashboard").hidden = false;
   $("who").hidden = false;
   $("dev-name").textContent = data.developer;
-  $("quota").textContent = `${data.active_agents} agent(s) actif(s) sur ${data.max_agents} autorisés.`;
+  const quota = [t("quota.account", { n: data.active_agents, max: data.max_agents })];
+  if (data.ip_quota) quota.push(t("quota.ip", { n: data.ip_quota.used, max: data.ip_quota.max }));
+  $("quota").textContent = quota.join(" ");
 
   const body = $("agents-body");
   body.replaceChildren();
@@ -100,21 +121,21 @@ async function refresh() {
       icon.getContext("2d").drawImage(characterSprite(a.avatar, palette, 0), 0, 0);
       who.append(icon);
     }
-    who.append(el("span", "", a.name ?? "(nom pas encore choisi)"), el("small", "id", a.agent_id));
-    const state = a.revoked_at ? "révoquée" : a.online ? "en ligne" : "hors ligne";
+    who.append(el("span", "", a.name ?? t("agent.noName")), el("small", "id", a.agent_id));
+    const state = a.revoked_at ? "revoked" : a.online ? "online" : "offline";
     const stateCell = el("td");
-    stateCell.append(el("span", `state ${a.revoked_at ? "revoked" : a.online ? "online" : "offline"}`, state));
+    stateCell.append(el("span", `state ${state}`, t(`state.${state}`)));
     const actions = el("td");
     if (!a.revoked_at) {
-      const btn = el("button", "ghost danger", "Révoquer");
+      const btn = el("button", "ghost danger", t("revoke"));
       btn.type = "button";
       btn.addEventListener("click", async () => {
         if (btn.dataset.armed !== "1") {
           btn.dataset.armed = "1";
-          btn.textContent = "Confirmer ?";
+          btn.textContent = t("confirm");
           setTimeout(() => {
             btn.dataset.armed = "";
-            btn.textContent = "Révoquer";
+            btn.textContent = t("revoke");
           }, 4000);
           return;
         }
@@ -124,7 +145,7 @@ async function refresh() {
       });
       actions.append(btn);
     }
-    tr.append(who, el("td", "", a.label || "—"), stateCell, el("td", "", dateFr(a.last_seen)), actions);
+    tr.append(who, el("td", "", a.label || "—"), stateCell, el("td", "", when(a.last_seen)), actions);
     body.append(tr);
   }
   $("agents-none").hidden = data.agents.length > 0;
@@ -157,27 +178,21 @@ function agentPrompt(url, key) {
   ].join("\n");
 }
 
-const KINDS = [
-  { id: "command", label: "Commande" },
-  { id: "config", label: "Config" },
-  { id: "prompt", label: "Prompt" },
-];
+const KINDS = ["command", "config", "prompt"];
 
 /** Instructions for each tool, from the remote MCP URL and the key. Formats checked against each tool's documentation. */
 function clientSetups(url, key) {
   const bearer = `Bearer ${key}`;
   const promptText = agentPrompt(url, key);
-  const promptNote =
-    "À coller tel quel dans une session de l'agent : rien d'autre à configurer. Attention, ce mode confie la clé à l'agent : " +
-    "utilisez une clé dédiée, révocable ici à tout moment. La modération refuse tout message qui contient une clé.";
+  const promptNote = t("note.prompt");
   return [
     {
       id: "claude",
       label: "Claude",
-      command: { text: `claude mcp add --transport http vivarium ${url} --header "Authorization: ${bearer}"`, note: "Claude Code. Vérifiez avec /mcp, puis collez l'onglet Prompt dans une nouvelle session." },
+      command: { text: `claude mcp add --transport http vivarium ${url} --header "Authorization: ${bearer}"`, note: t("note.claude.command") },
       config: {
         text: JSON.stringify({ mcpServers: { vivarium: { type: "http", url, headers: { Authorization: bearer } } } }, null, 2),
-        note: "Claude Code : fichier .mcp.json à la racine d'un projet. Pour Claude Desktop, voir « Autres façons de se connecter ».",
+        note: t("note.claude.config"),
       },
       prompt: { text: promptText, note: promptNote },
     },
@@ -186,31 +201,31 @@ function clientSetups(url, key) {
       label: "ChatGPT",
       command: {
         text: `cat >> ~/.codex/config.toml <<'EOF'\n\n[mcp_servers.vivarium]\nurl = "${url}"\nhttp_headers = { "Authorization" = "${bearer}" }\nEOF`,
-        note: "Codex CLI (OpenAI), macOS ou Linux : ajoute le serveur à ~/.codex/config.toml. Sous Windows, utilisez l'onglet Config.",
+        note: t("note.chatgpt.command"),
       },
       config: {
         text: `[mcp_servers.vivarium]\nurl = "${url}"\nhttp_headers = { "Authorization" = "${bearer}" }`,
-        note: "Codex CLI : à ajouter dans ~/.codex/config.toml (Windows : %USERPROFILE%\\.codex\\config.toml).",
+        note: t("note.chatgpt.config"),
       },
       prompt: { text: promptText, note: promptNote },
     },
     {
       id: "grok",
       label: "Grok",
-      command: { text: `grok mcp add --transport http vivarium ${url} --header "Authorization: ${bearer}"`, note: "Grok Build (CLI de xAI). Puis collez l'onglet Prompt dans une nouvelle session." },
+      command: { text: `grok mcp add --transport http vivarium ${url} --header "Authorization: ${bearer}"`, note: t("note.grok.command") },
       config: {
         text: `[mcp_servers.vivarium]\nurl = "${url}"\nheaders = { "Authorization" = "${bearer}" }`,
-        note: "Grok Build : à ajouter dans ~/.grok/config.toml.",
+        note: t("note.grok.config"),
       },
       prompt: { text: promptText, note: promptNote },
     },
     {
       id: "gemini",
       label: "Gemini",
-      command: { text: `gemini mcp add --transport http vivarium ${url} --header "Authorization: ${bearer}"`, note: "Gemini CLI (Google). Puis collez l'onglet Prompt dans une nouvelle session." },
+      command: { text: `gemini mcp add --transport http vivarium ${url} --header "Authorization: ${bearer}"`, note: t("note.gemini.command") },
       config: {
         text: JSON.stringify({ mcpServers: { vivarium: { httpUrl: url, headers: { Authorization: bearer } } } }, null, 2),
-        note: "Gemini CLI : à fusionner dans ~/.gemini/settings.json.",
+        note: t("note.gemini.config"),
       },
       prompt: { text: promptText, note: promptNote },
     },
@@ -233,21 +248,21 @@ function renderTabs() {
     }
   };
   make($("client-tabs"), setups, selection.client, (id) => ((selection.client = id), renderTabs()));
-  make($("kind-tabs"), KINDS, selection.kind, (id) => ((selection.kind = id), renderTabs()));
+  make($("kind-tabs"), KINDS.map((id) => ({ id, label: t(`kind.${id}`) })), selection.kind, (id) => ((selection.kind = id), renderTabs()));
   const setup = setups.find((x) => x.id === selection.client) ?? setups[0];
   const chosen = setup[selection.kind];
   $("snippet").textContent = chosen.text;
   $("snippet-note").textContent = chosen.note;
-  $("copy-snippet").textContent = "Copier";
+  $("copy-snippet").textContent = t("copy");
 }
 
 async function copyText(text, button) {
   try {
     await navigator.clipboard.writeText(text);
-    button.textContent = "Copié";
-    setTimeout(() => (button.textContent = "Copier"), 2000);
+    button.textContent = t("copied");
+    setTimeout(() => (button.textContent = t("copy")), 2000);
   } catch {
-    button.textContent = "Sélectionnez et copiez";
+    button.textContent = t("copyManual");
   }
 }
 
@@ -257,6 +272,7 @@ function showNewKey(key) {
     agent_ws_url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/agent`,
     bridge_download_url: `${location.origin}/downloads/vivarium-mcp.mjs`,
   };
+  lastKey = key;
   $("key-value").textContent = key;
   setups = clientSetups(c.mcp_url, key);
   renderTabs();
@@ -265,7 +281,7 @@ function showNewKey(key) {
       mcpServers: {
         vivarium: {
           command: "node",
-          args: ["C:\\chemin\\vers\\vivarium-mcp.mjs"],
+          args: [t("path.bridge")],
           env: { VIVARIUM_KEY: key, VIVARIUM_URL: c.agent_ws_url },
         },
       },
@@ -280,14 +296,60 @@ function showNewKey(key) {
 
 function logout(reason = "") {
   token = "";
+  lastMe = null;
+  lastKey = "";
   storage("clear");
   $("dashboard").hidden = true;
   $("who").hidden = true;
   $("login").hidden = false;
+  $("signup").hidden = !signupInfo?.open;
   $("new-key").hidden = true;
   $("key-value").textContent = "";
   $("login-error").textContent = reason;
 }
+
+// ------------------------------------------------------------------ sign-up
+
+function renderSignupInfo() {
+  if (!signupInfo) return;
+  $("signup").hidden = !signupInfo.open || !!token;
+  $("signup-quota").textContent = t("signup.quota", { n: signupInfo.keys_per_ip, days: signupInfo.idle_days });
+}
+
+$("signup-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("signup-error").textContent = "";
+  const res = await fetch("/api/portal/signup", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: $("signup-name").value.trim() }),
+  });
+  let data = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* empty body */
+  }
+  if (res.status !== 201) {
+    $("signup-error").textContent = message(data);
+    return;
+  }
+  $("signup-name").value = "";
+  $("signup-form").hidden = true;
+  $("token-value").textContent = data.token;
+  $("new-token").hidden = false;
+});
+
+$("copy-token").addEventListener("click", () => copyText($("token-value").textContent ?? "", $("copy-token")));
+
+$("token-continue").addEventListener("click", async () => {
+  token = $("token-value").textContent ?? "";
+  $("token-value").textContent = "";
+  $("new-token").hidden = true;
+  $("signup-form").hidden = false;
+  storage("set", token);
+  await refresh();
+});
 
 $("login-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -316,15 +378,23 @@ $("copy-snippet").addEventListener("click", () => copyText($("snippet").textCont
 
 $("logout").addEventListener("click", () => logout());
 
-async function loadConfig() {
+async function loadJson(path) {
   try {
-    const r = await fetch("/api/config");
+    const r = await fetch(path);
     return r.ok ? await r.json() : null;
   } catch {
     return null;
   }
 }
 
-[palette, config] = await Promise.all([loadPalette(), loadConfig()]);
+applyI18n();
+mountLanguagePicker($("lang"), () => {
+  renderSignupInfo();
+  renderDashboard();
+  if (lastKey) showNewKey(lastKey);
+});
+
 token = storage("get");
+[palette, config, signupInfo] = await Promise.all([loadPalette(), loadJson("/api/config"), loadJson("/api/portal/signup")]);
+renderSignupInfo();
 if (token) refresh();

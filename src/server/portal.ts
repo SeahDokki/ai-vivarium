@@ -41,6 +41,8 @@ export interface PortalDeps {
   readonly signup?: boolean;
   /** Active self-service keys per IP. Default 5. */
   readonly keysPerIp?: number;
+  /** Shown on the sign-up form: self-service keys unused this many days are released. */
+  readonly idleKeyDays?: number;
 }
 
 export class PortalApi {
@@ -62,7 +64,7 @@ export class PortalApi {
     if (!this.requests.hit(ip)) return send(res, 429, { error: "too_many_requests" }), true;
     const route = `${req.method} ${path}`;
     if (route === "GET /api/portal/signup") {
-      send(res, 200, { open: this.signupOpen, keys_per_ip: this.keysPerIp });
+      send(res, 200, { open: this.signupOpen, keys_per_ip: this.keysPerIp, idle_days: this.deps.idleKeyDays ?? 30 });
       return true;
     }
     if (route === "POST /api/portal/signup") {

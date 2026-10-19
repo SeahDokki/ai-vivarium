@@ -147,7 +147,7 @@ test("self-service sign-up: 5 active keys per IP across accounts, revoking frees
       ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
-  assert.deepEqual(await (await call("203.0.113.7", "", "GET", "/api/portal/signup")).json(), { open: true, keys_per_ip: 5 });
+  assert.deepEqual(await (await call("203.0.113.7", "", "GET", "/api/portal/signup")).json(), { open: true, keys_per_ip: 5, idle_days: 30 });
   const r1 = await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "Frank" });
   assert.equal(r1.status, 201);
   const one = await r1.json();

@@ -132,6 +132,7 @@ export class VivariumServer {
       ...(opts.now ? { now: opts.now } : {}),
       signup: opts.signup ?? false,
       keysPerIp: opts.keysPerIp ?? 5,
+      idleKeyDays: opts.idleKeyDays ?? 30,
     });
     const links = publicLinks(opts.publicUrl ?? `http://localhost:${opts.port ?? 8787}`);
     this.remoteMcp = new RemoteMcp({

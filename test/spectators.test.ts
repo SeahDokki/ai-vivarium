@@ -110,6 +110,8 @@ test("a spectator gets a snapshot with map, palette and agents under public ids"
   const viewer = open("/spectate");
   const snap = await viewer.next((f) => f.type === "snapshot");
   assert.equal(snap.map.id, "office");
+  assert.equal(snap.sight_radius, 10);
+  assert.equal(snap.hearing_radius, 6);
   assert.ok(snap.palette.skin.light);
   assert.ok(snap.palette.clothes.red);
   const nova = snap.agents.find((a: any) => a.name === "Nova");
@@ -143,6 +145,7 @@ test("spectators see agents move and talk", async () => {
   assert.equal(chat.message.from, "Nova");
   assert.equal(chat.message.text, "Bonjour le bureau");
   assert.equal(chat.message.speaker, joined.agent.id);
+  assert.deepEqual(chat.message.heard_by, [joined.agent.id], "who heard it, so a spectator can follow one agent");
 
   agent.close();
   const left = await viewer.next((f) => f.type === "agent_left");
