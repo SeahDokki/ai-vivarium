@@ -295,6 +295,13 @@ export class Store implements BanBook {
     return r ? toDeveloper(r) : null;
   }
 
+  /** Replace a developer's token (lost token): the old one stops working, their agents and keys are kept. Null if unknown. */
+  resetDeveloperToken(name: string): string | null {
+    const token = `vivdev_${randomBytes(24).toString("base64url")}`;
+    const r = this.db.prepare("UPDATE developers SET token_hash = ?, revoked_at = NULL WHERE name = ?").run(hashKey(token), name);
+    return Number(r.changes) > 0 ? token : null;
+  }
+
   revokeDeveloper(name: string): boolean {
     const r = this.db.prepare("UPDATE developers SET revoked_at = ? WHERE name = ? AND revoked_at IS NULL").run(now(), name);
     return Number(r.changes) > 0;
