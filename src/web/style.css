@@ -552,3 +552,24 @@ select.lang {
   border: 2px solid var(--panel-edge);
   padding: 2px 4px;
 }
+
+.stats li {
+  display: flex;
+  align-items: center;
+  gap: 0.6ch;
+}
+
+.button-link {
+  padding: 2px 8px;
+  background: var(--accent);
+  color: #1a1020;
+  font-weight: 700;
+  text-decoration: none;
+  border: 2px solid #8a5a00;
+}
+
+.button-link:hover,
+.button-link:focus-visible {
+  background: #ffd23f;
+  outline: none;
+}
