@@ -12,6 +12,8 @@ import { SpectatorHub } from "./spectators.js";
 import { serveStatic } from "./static.js";
 import { PortalApi } from "./portal.js";
 import { clientIp } from "./ip.js";
+import { RemoteMcp, type VirtualSocket } from "./remote-mcp.js";
+import { publicLinks } from "./public-url.js";
 import {
   CHALLENGE_TIMEOUT_MS,
   CLOSE,
@@ -54,6 +56,10 @@ export interface ServerOptions {
   readonly now?: () => number;
   /** Trust CF-Connecting-IP / X-Real-IP / X-Forwarded-For from a local reverse proxy. Default false. */
   readonly trustProxy?: boolean;
+  /** Public base URL, e.g. https://vivarium.example.com. Default http://localhost:<port>. Shown in the portal. */
+  readonly publicUrl?: string;
+  /** Remote MCP agents leave after this long without a call. Default 5 minutes. */
+  readonly mcpIdleMs?: number;
 }
 
 /** Open WebSocket connections allowed per IP address. */
@@ -92,6 +98,7 @@ export class VivariumServer {
   private readonly failures = new Map<AgentId, { count: number; since: number }>();
   readonly moderator: Moderator;
   private readonly portal: PortalApi;
+  readonly remoteMcp: RemoteMcp;
   private readonly socketsPerIp = new Map<string, number>();
   private saver: NodeJS.Timeout | null = null;
   private readonly unsubscribe: () => void;
@@ -112,8 +119,22 @@ export class VivariumServer {
       },
       ...(opts.now ? { now: opts.now } : {}),
     });
+    const links = publicLinks(opts.publicUrl ?? `http://localhost:${opts.port ?? 8787}`);
+    this.remoteMcp = new RemoteMcp({
+      store: opts.store,
+      attach: (socket: VirtualSocket) => this.onConnection(socket as unknown as WebSocket, {} as IncomingMessage),
+      publicOrigin: links.origin,
+      ...(opts.mcpIdleMs ? { idleMs: opts.mcpIdleMs } : {}),
+      log: this.log,
+    });
     this.http = createServer((req, res) => {
-      if (this.portal.handle(req, res, clientIp(req, opts.trustProxy ?? false))) return;
+      const ip = clientIp(req, opts.trustProxy ?? false);
+      if (this.remoteMcp.handle(req, res, ip)) return;
+      if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/api/config") {
+        res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-cache" }).end(JSON.stringify(links.config));
+        return;
+      }
+      if (this.portal.handle(req, res, ip)) return;
       if (withSpectators && serveStatic(req, res)) return;
       res.writeHead(404, { "content-type": "text/plain; charset=utf-8" }).end("Not found\n");
     });
@@ -169,6 +190,7 @@ export class VivariumServer {
   }
 
   async stop(): Promise<void> {
+    this.remoteMcp.stop();
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.saver) clearInterval(this.saver);
     this.saveAll();

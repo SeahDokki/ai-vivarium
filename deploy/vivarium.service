@@ -16,6 +16,8 @@ Restart=on-failure
 RestartSec=5
 
 Environment=NODE_ENV=production
+# Public address (shown in the portal). Can also live in /opt/vivarium/.env.
+Environment=PUBLIC_URL=https://vivarium.example.com
 Environment=HOST=127.0.0.1
 Environment=PORT=8787
 Environment=TRUST_PROXY=1

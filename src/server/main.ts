@@ -1,7 +1,11 @@
 /**
  * Start the Vivarium server on the office map.
  *
+ * Settings come from the environment, or from a .env file in the working directory (see .env.example);
+ * variables already set in the environment win over the file.
+ *
  * Env:
+ *   PUBLIC_URL         public address of this Vivarium, e.g. https://vivarium.example.com (default http://localhost:<PORT>)
  *   PORT               default 8787
  *   HOST               default 127.0.0.1 (local only)
  *   TICK_MS            default 500
@@ -12,6 +16,8 @@
  *   MAX_AGENTS         agents allowed in the world at once, default 50
  *   DEMO_BOTS          number of scripted bots (no AI) living in the office, for development. Default 0.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { loadMap } from "../world/map.js";
 import { OFFICE_MAP } from "../world/maps/office.js";
 import { TickLoop } from "../world/loop.js";
@@ -20,7 +26,14 @@ import { BotCrowd } from "../sim/bots.js";
 import { Store } from "../store/store.js";
 import { VivariumServer } from "./server.js";
 
+if (existsSync(".env")) {
+  for (const [k, v] of Object.entries(parseEnv(readFileSync(".env", "utf8")))) {
+    if (process.env[k] === undefined) process.env[k] = v;
+  }
+}
+
 const port = Number(process.env["PORT"] ?? 8787);
+const publicUrl = process.env["PUBLIC_URL"] || `http://localhost:${port}`;
 const host = process.env["HOST"] ?? "127.0.0.1";
 const tickMs = Number(process.env["TICK_MS"] ?? 500);
 
@@ -50,6 +63,7 @@ const server = new VivariumServer({
   port,
   tickMs,
   trustProxy: process.env["TRUST_PROXY"] === "1",
+  publicUrl,
   maxAgents: Number(process.env["MAX_AGENTS"] ?? 50),
   log: (line) => console.log(`[${new Date().toISOString()}] ${line}`),
 });
@@ -64,6 +78,7 @@ if (demoBots > 0) {
 
 await server.start();
 loop.start();
+console.log(`Public URL: ${publicUrl} (portal ${publicUrl}/portal, remote MCP ${publicUrl}/mcp)`);
 
 const shutdown = async () => {
   loop.stop();

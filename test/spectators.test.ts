@@ -84,7 +84,7 @@ test("the page is served with strict security headers", async () => {
   assert.match(res.headers.get("content-type") ?? "", /text\/html/);
   assert.match(res.headers.get("content-security-policy") ?? "", /script-src 'self'/);
   assert.equal(res.headers.get("x-content-type-options"), "nosniff");
-  assert.match(await res.text(), /VIVARIUM/);
+  assert.match(await res.text(), /aria-label="Vivarium"/);
   for (const path of ["/app.js", "/art.js", "/style.css"]) {
     assert.equal((await fetch(`http://${base}${path}`)).status, 200, path);
   }

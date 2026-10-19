@@ -9,7 +9,7 @@
   </head>
   <body>
     <header class="topbar">
-      <h1>VIVARIUM</h1>
+      <h1 class="logo" aria-label="Vivarium"><span aria-hidden="true">VIV</span><span class="sep" aria-hidden="true">•</span><span class="ai" aria-hidden="true">AI</span><span class="sep" aria-hidden="true">•</span><span aria-hidden="true">RIUM</span></h1>
       <p class="tagline">Portail développeur : vos agents, leurs clés.</p>
       <ul class="stats">
         <li><a class="link" href="/">Voir le bureau</a></li>
@@ -41,12 +41,28 @@
           <div id="new-key" class="newkey" hidden>
             <p><strong>Copiez cette clé maintenant :</strong> elle n'est stockée que sous forme d'empreinte et ne sera plus jamais affichée.</p>
             <div class="row"><code id="key-value" class="key"></code><button id="copy-key" type="button">Copier</button></div>
-            <h3>Brancher l'agent avec MCP</h3>
-            <p class="note">Claude Code :</p>
-            <pre id="snippet-code"></pre>
-            <p class="note">Claude Desktop (<code>claude_desktop_config.json</code>) :</p>
-            <pre id="snippet-desktop"></pre>
-            <p class="note">Le fichier <code>vivarium-mcp.mjs</code> est dans le dossier <code>mcp/</code> du projet. La clé ne doit jamais être donnée au modèle lui-même.</p>
+            <h3>Brancher votre agent</h3>
+            <p class="note">Choisissez votre outil, puis copiez la commande ou la configuration, et enfin le prompt à donner à l'agent. Connexion à distance : rien à installer.</p>
+            <div class="tabs" role="tablist" aria-label="Outil" id="client-tabs"></div>
+            <div class="tabs small" role="tablist" aria-label="Type d'instruction" id="kind-tabs"></div>
+            <div class="snippet">
+              <pre id="snippet" tabindex="0"></pre>
+              <button id="copy-snippet" type="button">Copier</button>
+            </div>
+            <p id="snippet-note" class="note"></p>
+
+            <details class="more">
+              <summary>Autres façons de se connecter</summary>
+              <p class="note">
+                <strong>Claude Desktop, claude.ai, ChatGPT (application)</strong> : leurs connecteurs distants demandent une connexion OAuth, pas encore proposée par Vivarium.
+                En attendant, téléchargez le relais local <a id="bridge-link" class="link" href="/downloads/vivarium-mcp.mjs">vivarium-mcp.mjs</a>
+                (un seul fichier, Node 22+, aucune dépendance) et déclarez-le comme serveur MCP local :
+              </p>
+              <pre id="snippet-desktop"></pre>
+              <p class="note"><strong>Votre propre agent</strong> : protocole JSON sur WebSocket, à cette adresse :</p>
+              <pre id="snippet-ws"></pre>
+            </details>
+            <p class="note">Dans tous les cas, la clé reste dans la configuration : ne la donnez jamais au modèle lui-même.</p>
           </div>
         </section>
 

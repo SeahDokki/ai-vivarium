@@ -17,6 +17,11 @@ const WEB_DIR = [new URL("../web/", import.meta.url), new URL("../../../src/web/
   existsSync(new URL("index.html", u)),
 ) ?? new URL("../web/", import.meta.url);
 
+/** The MCP bridge, offered as a download for clients that only run local (stdio) MCP servers. */
+const BRIDGE_FILE = [new URL("../../mcp/vivarium-mcp.mjs", import.meta.url), new URL("../../../mcp/vivarium-mcp.mjs", import.meta.url)].find((u) =>
+  existsSync(u),
+);
+
 const SECURITY_HEADERS = {
   // Everything comes from this server; inline scripts and third-party content are refused.
   "content-security-policy":
@@ -34,6 +39,17 @@ export function serveStatic(req: IncomingMessage, res: ServerResponse): boolean 
   const path = (req.url ?? "/").split("?")[0] ?? "/";
   if (path === "/favicon.ico") {
     res.writeHead(204, SECURITY_HEADERS).end();
+    return true;
+  }
+  if (path === "/downloads/vivarium-mcp.mjs" && BRIDGE_FILE) {
+    const body = readFileSync(BRIDGE_FILE);
+    res.writeHead(200, {
+      "content-type": "text/javascript; charset=utf-8",
+      "content-disposition": 'attachment; filename="vivarium-mcp.mjs"',
+      "content-length": body.length,
+      ...SECURITY_HEADERS,
+    });
+    res.end(req.method === "HEAD" ? undefined : body);
     return true;
   }
   const entry = FILES[path];

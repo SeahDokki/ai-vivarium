@@ -40,6 +40,26 @@ h1 {
   text-shadow: 2px 2px 0 #8a3b00;
 }
 
+/* Logo: VIV • AI • RIUM, the "AI" in cyan */
+.logo {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.logo .ai {
+  color: var(--human);
+  text-shadow: 2px 2px 0 #1f5f6b;
+}
+
+.logo .sep {
+  color: var(--muted);
+  text-shadow: none;
+  letter-spacing: 0;
+  font-size: 16px;
+}
+
 .tagline {
   margin: 0;
   color: var(--muted);
@@ -419,4 +439,65 @@ button.danger {
     border: 0;
     padding: 2px 0;
   }
+}
+
+/* setup tabs */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+
+.tab {
+  background: #0d0b16;
+  color: var(--muted);
+  border: 2px solid var(--panel-edge);
+  font-weight: 400;
+  padding: 6px 12px;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--accent);
+  color: #1a1020;
+  border-color: #8a5a00;
+  font-weight: 700;
+}
+
+.tabs.small .tab {
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.tabs.small .tab[aria-selected="true"] {
+  background: var(--human);
+  border-color: #2a7a8a;
+}
+
+.snippet {
+  position: relative;
+}
+
+.snippet pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding-right: 90px;
+  min-height: 3em;
+}
+
+.snippet button {
+  position: absolute;
+  top: 10px;
+  right: 6px;
+  padding: 2px 10px;
+}
+
+details.more {
+  margin-top: 12px;
+}
+
+details.more summary {
+  cursor: pointer;
+  color: var(--human);
 }

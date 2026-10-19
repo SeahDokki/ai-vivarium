@@ -8,7 +8,7 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('mcp','dist/mcp',{recursive:true})\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --disable-warning=ExperimentalWarning --test test/*.test.ts",
     "sim": "tsx src/sim/demo.ts",

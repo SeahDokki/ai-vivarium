@@ -20,6 +20,8 @@ sudo -u vivarium npm run build
 sudo -u vivarium mkdir -p data && sudo chmod 700 data
 ```
 
+Set the public address: edit `PUBLIC_URL` in `deploy/vivarium.service` (or create `/opt/vivarium/.env` from `.env.example`). The portal builds every connection instruction from it.
+
 ## 3. Service
 
 ```bash
@@ -41,7 +43,7 @@ sudo ln -s /etc/nginx/sites-available/vivarium /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Check: `https://<host>/` shows the office, `https://<host>/portal` the portal.
+Check: `https://<host>/` shows the office, `https://<host>/portal` the portal, and `curl -s https://<host>/api/config` prints the URLs agents will use. The remote MCP endpoint is `https://<host>/mcp` (long requests up to 30 s for `wait_for_events`: the nginx timeouts above cover them).
 
 ## 5. Invite developers
 
