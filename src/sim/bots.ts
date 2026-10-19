@@ -13,7 +13,8 @@ export function makeRandom(seed: number): () => number {
   };
 }
 
-const NAMES = ["Nova", "Orbit", "Pixel", "Echo", "Lumen", "Quartz", "Tango", "Zephyr", "Iris", "Bolt"];
+// "Bot " prefix: demo bots never take a name a real agent may want.
+const NAMES = ["Bot Nova", "Bot Orbit", "Bot Pixel", "Bot Echo", "Bot Lumen", "Bot Quartz", "Bot Tango", "Bot Zephyr", "Bot Iris", "Bot Bolt"];
 const LINES = [
   "Hello there!",
   "Anyone up for a coffee?",
