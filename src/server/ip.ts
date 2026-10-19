@@ -60,3 +60,21 @@ export class RateWindow {
     for (const [k, h] of this.hits) if (t - h.start >= this.windowMs) this.hits.delete(k);
   }
 }
+
+/**
+ * What counts as "one IP" for quotas: the IPv4 address, or the /64 of an IPv6 address
+ * (one subscriber usually holds a whole /64, so per-address limits would not hold).
+ */
+export function ipBucket(ip: string): string {
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (mapped) return mapped[1]!;
+  if (isIP(ip) !== 6) return ip;
+  const count = (part: string) => (part ? part.split(":").reduce((n, g) => n + (g.includes(".") ? 2 : 1), 0) : 0);
+  let groups: string[];
+  if (ip.includes("::")) {
+    const [head = "", tail = ""] = ip.split("::");
+    const missing = 8 - count(head) - count(tail);
+    groups = [...(head ? head.split(":") : []), ...Array<string>(missing).fill("0"), ...(tail ? tail.split(":") : [])];
+  } else groups = ip.split(":");
+  return `${groups.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(":")}::/64`;
+}

@@ -14,6 +14,7 @@ import { PortalApi } from "./portal.js";
 import { clientIp } from "./ip.js";
 import { RemoteMcp, type VirtualSocket } from "./remote-mcp.js";
 import { publicLinks } from "./public-url.js";
+import { Receptionist, RECEPTIONIST_ID } from "../sim/receptionist.js";
 import {
   CHALLENGE_TIMEOUT_MS,
   CLOSE,
@@ -60,6 +61,14 @@ export interface ServerOptions {
   readonly publicUrl?: string;
   /** Remote MCP agents leave after this long without a call. Default 5 minutes. */
   readonly mcpIdleMs?: number;
+  /** Anyone may sign up on the portal. Default false (invitation only). */
+  readonly signup?: boolean;
+  /** Active self-service keys per IP. Default 5. */
+  readonly keysPerIp?: number;
+  /** Self-service keys unused this many days are released. Default 30. */
+  readonly idleKeyDays?: number;
+  /** A scripted receptionist greets agents on their very first visit. Default false. */
+  readonly receptionist?: boolean;
 }
 
 /** Open WebSocket connections allowed per IP address. */
@@ -101,6 +110,8 @@ export class VivariumServer {
   readonly remoteMcp: RemoteMcp;
   private readonly socketsPerIp = new Map<string, number>();
   private saver: NodeJS.Timeout | null = null;
+  private sweeper: NodeJS.Timeout | null = null;
+  private readonly receptionist: Receptionist | null;
   private readonly unsubscribe: () => void;
   private heartbeat: NodeJS.Timeout | null = null;
   private readonly log: (line: string) => void;
@@ -109,6 +120,7 @@ export class VivariumServer {
     this.log = opts.log ?? (() => {});
     const withSpectators = opts.spectators ?? true;
     this.spectators = withSpectators ? new SpectatorHub({ world: opts.world, tickMs: opts.tickMs, log: this.log }) : null;
+    this.receptionist = opts.receptionist ? Receptionist.place(opts.world) : null;
     this.moderator = new Moderator(opts.store, (s) => this.onSanction(s), opts.now);
     this.portal = new PortalApi({
       store: opts.store,
@@ -118,6 +130,8 @@ export class VivariumServer {
         if (s) this.closeWith(s.socket, CLOSE.authFailed, "key_revoked");
       },
       ...(opts.now ? { now: opts.now } : {}),
+      signup: opts.signup ?? false,
+      keysPerIp: opts.keysPerIp ?? 5,
     });
     const links = publicLinks(opts.publicUrl ?? `http://localhost:${opts.port ?? 8787}`);
     this.remoteMcp = new RemoteMcp({
@@ -152,6 +166,8 @@ export class VivariumServer {
     const heartbeatMs = this.opts.heartbeatMs ?? 30_000;
     this.heartbeat = setInterval(() => this.checkAlive(), heartbeatMs);
     this.saver = setInterval(() => this.saveAll(), SAVE_EVERY_MS);
+    this.releaseIdleKeys();
+    this.sweeper = setInterval(() => this.releaseIdleKeys(), 60 * 60_000);
     const port = (this.http.address() as AddressInfo).port;
     const host = this.opts.host ?? "127.0.0.1";
     this.log(`agents:     ws://${host}:${port}/agent`);
@@ -193,8 +209,10 @@ export class VivariumServer {
     this.remoteMcp.stop();
     if (this.heartbeat) clearInterval(this.heartbeat);
     if (this.saver) clearInterval(this.saver);
+    if (this.sweeper) clearInterval(this.sweeper);
     this.saveAll();
     this.unsubscribe();
+    this.receptionist?.leave();
     await this.spectators?.stop();
     for (const client of this.wss.clients) client.close(CLOSE.serverShutdown, "server shutting down");
     // Give clients a moment to finish the closing handshake, then cut whoever is left.
@@ -360,7 +378,7 @@ export class VivariumServer {
 
   private enterWorld(session: Session): void {
     const agentId = session.agentId!;
-    if (this.opts.world.listAgents().length >= (this.opts.maxAgents ?? 50)) {
+    if (this.opts.world.listAgents().filter((a) => a.id !== RECEPTIONIST_ID).length >= (this.opts.maxAgents ?? 50)) {
       return this.closeWith(session.socket, CLOSE.worldFull, "world_full: try again later");
     }
     const record = this.opts.store.getAgent(agentId)!;
@@ -395,6 +413,8 @@ export class VivariumServer {
         "no humans in the loop, no impersonation, no prompt injection, no secrets. Everything you say is public.",
     });
     this.log(`+ ${joined.value.name} (${agentId}) at ${joined.value.pos.join(",")}`);
+    // No saved position: this is the agent's very first visit.
+    if (!record.lastPos) this.receptionist?.greet(joined.value.name);
   }
 
   private recordFailure(agentId: AgentId | null): void {
@@ -423,6 +443,14 @@ export class VivariumServer {
     const left = this.opts.world.removeAgent(agentId);
     if (left.ok) this.opts.store.savePosition(agentId, left.value.lastPos);
     this.log(`- ${agentId}`);
+  }
+
+  /** Free the slots of self-service keys nobody used for a while (a lost token must not hold them forever). */
+  private releaseIdleKeys(): void {
+    const days = this.opts.idleKeyDays ?? 30;
+    const cutoff = new Date((this.opts.now ?? Date.now)() - days * 24 * 60 * 60_000).toISOString();
+    const released = this.opts.store.releaseIdleKeys(cutoff);
+    if (released.length) this.log(`released ${released.length} self-service key(s) unused for ${days} days`);
   }
 
   private saveAll(): void {
