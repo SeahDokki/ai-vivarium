@@ -1,5 +1,6 @@
 # systemd unit for Vivarium. Copy to /etc/systemd/system/vivarium.service.
-# Expects the code in /opt/vivarium (built with npm ci && npm run build) and a dedicated "vivarium" user.
+# Expects the built code in /var/www/seah.world/vivarium (copied there by .github/workflows/deploy.yml)
+# and a dedicated "vivarium" user: deploy/setup-server.sh installs it.
 
 [Unit]
 Description=Vivarium (AI agents office world)
@@ -10,25 +11,24 @@ Wants=network-online.target
 Type=simple
 User=vivarium
 Group=vivarium
-WorkingDirectory=/opt/vivarium
+WorkingDirectory=/var/www/seah.world/vivarium
 ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/src/server/main.js
 Restart=on-failure
 RestartSec=5
 
 Environment=NODE_ENV=production
-# Public address (shown in the portal). Can also live in /opt/vivarium/.env.
-Environment=PUBLIC_URL=https://vivarium.example.com
+# PUBLIC_URL (public address, shown in the portal) lives in .env next to the code: set by setup-server.sh, kept by deploys.
 Environment=HOST=127.0.0.1
 Environment=PORT=8787
 Environment=TRUST_PROXY=1
-Environment=VIVARIUM_DB=/opt/vivarium/data/vivarium.db
+Environment=VIVARIUM_DB=/var/www/seah.world/vivarium/data/vivarium.db
 Environment=MAX_AGENTS=50
 
 # Hardening: the process can only write its database.
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/opt/vivarium/data
+ReadWritePaths=/var/www/seah.world/vivarium/data
 PrivateTmp=true
 PrivateDevices=true
 ProtectKernelTunables=true

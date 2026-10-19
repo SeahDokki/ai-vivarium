@@ -1,0 +1,85 @@
+# Test, build and deploy to the Ubuntu server on every push to main (a merged PR is a push).
+# The server never sees the repository: the runner builds, copies the result with rsync and restarts the service.
+# One-time server setup: deploy/setup-server.sh. Secrets: DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS (DEPLOY_PORT optional).
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never two deploys at once; a newer push waits for the running one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DEPLOY_USER: deploy
+  DEPLOY_DIR: /var/www/seah.world/vivarium
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # Actions pinned by commit (supply-chain hardening, same spirit as .npmrc).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      # Ship only runtime dependencies (ws, pure JS): the server needs Node and nothing else.
+      - run: npm prune --omit=dev
+
+      - name: SSH key and pinned host key
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Copy to the server
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+        # data/ (database) and .env (server settings) live only on the server: excluded, so never overwritten or deleted.
+        run: |
+          rsync -rlptz --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
+            --exclude=/.git/ --exclude=/.github/ --exclude=/data/ --exclude=/.env \
+            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
+            ./ "$DEPLOY_USER@$HOST:$DEPLOY_DIR/"
+
+      - name: Restart and check
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" '
+            set -e
+            sudo -n /usr/bin/systemctl restart vivarium
+            for i in $(seq 1 15); do
+              if curl -fsS http://127.0.0.1:8787/api/config > /dev/null; then echo "vivarium is up"; exit 0; fi
+              sleep 1
+            done
+            echo "vivarium did not answer on 127.0.0.1:8787" >&2
+            sudo -n /usr/bin/journalctl -u vivarium -n 50 --no-pager >&2 || true
+            exit 1
+          '
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

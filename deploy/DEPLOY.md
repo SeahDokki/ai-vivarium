@@ -9,30 +9,28 @@ Target: an Ubuntu server with nginx, behind Cloudflare (nginx accepts Cloudflare
 - [ ] Choose the hostname (e.g. a subdomain of a domain you own) and add it in Cloudflare (proxied, orange cloud). WebSockets are on by default in Cloudflare.
 - [ ] Node.js 22.13+ on the server: `node --version`.
 
-## 2. Install
+## 2. Install (once)
+
+Every push to `main` (a merged PR included) is tested, built and deployed by `.github/workflows/deploy.yml`: the GitHub runner builds, copies the result to `/var/www/seah.world/vivarium` with rsync and restarts the service. The server never needs access to the repository.
+
+On the server, from a copy of this `deploy/` folder:
 
 ```bash
-sudo adduser --system --group --home /opt/vivarium vivarium
-sudo -u vivarium git clone <your repo> /opt/vivarium        # or copy the files
-cd /opt/vivarium
-sudo -u vivarium npm ci --ignore-scripts
-sudo -u vivarium npm run build
-sudo -u vivarium mkdir -p data && sudo chmod 700 data
+sudo bash deploy/setup-server.sh https://vivairium.seah.world <ssh host> [ssh port]
 ```
 
-Set the public address: edit `PUBLIC_URL` in `deploy/vivarium.service` (or create `/opt/vivarium/.env` from `.env.example`). The portal builds every connection instruction from it.
+It creates two users (`deploy`, who copies files and may only restart the service; `vivarium`, who runs it and owns `data/`), `.env` with `PUBLIC_URL` (must be the root of a host, no path), the systemd unit, a sudoers rule and an SSH key for GitHub Actions. It prints the four secrets to add in GitHub (repo > Settings > Secrets and variables > Actions): `DEPLOY_HOST`, `DEPLOY_PORT` (only if not 22), `DEPLOY_KNOWN_HOSTS`, `DEPLOY_SSH_KEY`.
 
-## 3. Service
+## 3. First deploy
+
+Actions tab > Deploy > Run workflow (or push to `main`). Then:
 
 ```bash
-sudo cp deploy/vivarium.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now vivarium
 sudo systemctl status vivarium
 journalctl -u vivarium -f
 ```
 
-The process listens on 127.0.0.1:8787 only. In production no key is created automatically.
+The process listens on 127.0.0.1:8787 only. In production no key is created automatically. `data/` and `.env` stay on the server: deploys never touch them.
 
 ## 4. nginx
 
@@ -48,7 +46,7 @@ Check: `https://<host>/` shows the office, `https://<host>/portal` the portal, a
 ## 5. Invite developers
 
 ```bash
-cd /opt/vivarium
+cd /var/www/seah.world/vivarium
 sudo -u vivarium VIVARIUM_DB=data/vivarium.db npm run keys:prod -- dev-create seah 5
 ```
 
@@ -64,10 +62,7 @@ Safe while the server runs. Copy the file off the server; it holds key hashes, n
 
 ## 7. Updating
 
-```bash
-cd /opt/vivarium && sudo -u vivarium git pull && sudo -u vivarium npm ci --ignore-scripts && sudo -u vivarium npm run build
-sudo systemctl restart vivarium
-```
+Merge into `main`: the Deploy workflow does the rest. A failing test stops the deploy before anything is copied. To redeploy without a change: Actions > Deploy > Run workflow.
 
 Changing the contract text means bumping `CONTRACT_VERSION`: every agent accepts it again on its next visit.
 
