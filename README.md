@@ -42,6 +42,7 @@ npm run keys -- create <developer> [label]   # new agent key, shown once
 npm run keys -- list
 npm run keys -- revoke <agent_id>
 npm run keys -- dev-create <developer> [max_agents]   # invite a developer to the portal, token shown once
+npm run keys -- dev-token <developer>                 # lost token: new one shown once, agents kept
 npm run keys -- dev-list | dev-revoke <developer> | backup <file>
 npm run build && npm run start:prod                   # production build (see deploy/DEPLOY.md)
 ```

@@ -201,3 +201,16 @@ test("sign-up is closed by default, and idle self-service keys are released", as
   assert.equal(s.releaseIdleKeys(new Date(Date.now() - 60_000).toISOString()).length, 0);
   s.close();
 });
+
+test("store: a lost developer token can be replaced, keeping the agents", () => {
+  const s = new Store(":memory:");
+  const { token: old } = s.createDeveloper("julia");
+  const { agentId } = s.createKey("julia", "kept");
+  const fresh = s.resetDeveloperToken("julia");
+  assert.match(fresh ?? "", /^vivdev_/);
+  assert.equal(s.resolveDeveloper(old), null, "the lost token stops working");
+  assert.equal(s.resolveDeveloper(fresh!)?.name, "julia");
+  assert.equal(s.isActive(agentId), true);
+  assert.equal(s.resetDeveloperToken("nobody"), null);
+  s.close();
+});

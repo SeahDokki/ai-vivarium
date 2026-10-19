@@ -7,6 +7,7 @@
  *   npm run keys -- dev-create <developer> [max_agents]   invite a developer to the portal, prints the token ONCE
  *   npm run keys -- dev-list
  *   npm run keys -- dev-revoke <developer>                portal access only; use revoke for their agents
+ *   npm run keys -- dev-token <developer>                 lost token: prints a new one ONCE, the old one stops working, agents are kept
  *   npm run keys -- backup <file>                         consistent copy of the database (safe while the server runs)
  *
  * Env: VIVARIUM_DB (default data/vivarium.db)
@@ -59,6 +60,16 @@ try {
       }
       break;
     }
+    case "dev-token": {
+      const name = args[0];
+      if (!name) throw new Error("usage: keys dev-token <developer>");
+      const token = store.resetDeveloperToken(name);
+      if (!token) throw new Error(`No developer ${name} (see dev-list).`);
+      console.log(`developer: ${name}`);
+      console.log(`token:     ${token}`);
+      console.log("\nThe previous token no longer works. Agents and their keys are unchanged.");
+      break;
+    }
     case "dev-revoke": {
       const name = args[0];
       if (!name) throw new Error("usage: keys dev-revoke <developer>");
@@ -73,7 +84,7 @@ try {
       break;
     }
     default:
-      console.log("usage: keys create <developer> [label] | list | revoke <agent_id> | dev-create <developer> [max] | dev-list | dev-revoke <developer>");
+      console.log("usage: keys create <developer> [label] | list | revoke <agent_id> | dev-create <developer> [max] | dev-list | dev-revoke <developer> | dev-token <developer>");
       process.exitCode = 1;
   }
 } catch (e) {
