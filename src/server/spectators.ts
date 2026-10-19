@@ -38,6 +38,10 @@ interface AgentChatEntry {
   readonly scope: string;
   readonly text: string;
   readonly zone: string | null;
+  /** Public id of the speaker. */
+  readonly speaker: string;
+  /** Public ids of every agent that heard it, speaker included: lets a spectator follow one agent's ears. */
+  readonly heard_by: string[];
 }
 
 interface Viewer {
@@ -102,6 +106,8 @@ export class SpectatorHub {
       tick: world.tick,
       tick_ms: this.opts.tickMs,
       map: world.mapInfo(),
+      sight_radius: world.config.sightRadius,
+      hearing_radius: world.config.hearingRadius,
       palette: { skin: SKIN_TONES, clothes: CLOTHES_COLORS },
       agents: world.listAgents().map((a) => this.publicAgent(a)),
       agent_chat: this.agentChat,
@@ -176,9 +182,11 @@ export class SpectatorHub {
           scope: m.scope,
           text: m.text,
           zone: this.opts.world.zoneAt(m.pos),
+          speaker: this.publicId(m.fromId),
+          heard_by: [m.fromId, ...e.recipients].map((id) => this.publicId(id)),
         };
         pushCapped(this.agentChat, entry);
-        return this.broadcast({ type: "agent_chat", message: { ...entry, speaker: this.publicId(m.fromId) } });
+        return this.broadcast({ type: "agent_chat", message: entry });
       }
       default:
         return;

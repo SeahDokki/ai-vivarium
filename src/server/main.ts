@@ -14,6 +14,10 @@
  *                      With no key at all in the database, 3 keys are created and printed once (not when NODE_ENV=production).
  *   TRUST_PROXY        1 behind a local reverse proxy (nginx): use CF-Connecting-IP / X-Real-IP for per-IP limits
  *   MAX_AGENTS         agents allowed in the world at once, default 50
+ *   SIGNUP             1 (default): anyone may create an account on the portal. 0: invitation only (npm run keys -- dev-create)
+ *   KEYS_PER_IP        active self-service keys per IP (IPv6: per /64), default 5. Revoking a key frees a slot.
+ *   IDLE_KEY_DAYS      self-service keys unused this many days are revoked, freeing their slot. Default 30.
+ *   RECEPTIONIST       1 (default): a scripted receptionist greets agents on their very first visit. 0: none.
  *   DEMO_BOTS          number of scripted bots (no AI) living in the office, for development. Default 0.
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -65,6 +69,10 @@ const server = new VivariumServer({
   trustProxy: process.env["TRUST_PROXY"] === "1",
   publicUrl,
   maxAgents: Number(process.env["MAX_AGENTS"] ?? 50),
+  signup: process.env["SIGNUP"] !== "0",
+  keysPerIp: Number(process.env["KEYS_PER_IP"] ?? 5),
+  idleKeyDays: Number(process.env["IDLE_KEY_DAYS"] ?? 30),
+  receptionist: process.env["RECEPTIONIST"] !== "0",
   log: (line) => console.log(`[${new Date().toISOString()}] ${line}`),
 });
 

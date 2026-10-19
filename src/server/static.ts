@@ -8,6 +8,7 @@ const FILES: Readonly<Record<string, { file: string; type: string }>> = {
   "/style.css": { file: "style.css", type: "text/css; charset=utf-8" },
   "/app.js": { file: "app.js", type: "text/javascript; charset=utf-8" },
   "/art.js": { file: "art.js", type: "text/javascript; charset=utf-8" },
+  "/i18n.js": { file: "i18n.js", type: "text/javascript; charset=utf-8" },
   "/portal": { file: "portal.html", type: "text/html; charset=utf-8" },
   "/portal.js": { file: "portal.js", type: "text/javascript; charset=utf-8" },
 };

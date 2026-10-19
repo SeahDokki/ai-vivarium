@@ -501,3 +501,54 @@ details.more summary {
   cursor: pointer;
   color: var(--human);
 }
+
+/* ---------------------------------------------------------------- focus and language */
+
+.agents li {
+  padding: 0;
+}
+
+.agent-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid transparent;
+  font-weight: 400;
+  text-align: left;
+}
+
+.agent-pick:hover {
+  border-color: var(--panel-edge);
+}
+
+.agent-pick.focused {
+  border-color: var(--accent);
+}
+
+.focus-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border: 2px solid var(--accent);
+  background: var(--panel);
+}
+
+.focus-bar[hidden] {
+  display: none;
+}
+
+select.lang {
+  font: inherit;
+  color: var(--ink);
+  background: #0d0b16;
+  border: 2px solid var(--panel-edge);
+  padding: 2px 4px;
+}

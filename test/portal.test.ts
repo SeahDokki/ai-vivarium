@@ -133,3 +133,71 @@ test("store: developer names and tokens", () => {
   assert.equal(s.resolveDeveloper("viv_" + token.slice(7)), null);
   s.close();
 });
+
+test("self-service sign-up: 5 active keys per IP across accounts, revoking frees a slot", async () => {
+  const s = new Store(":memory:");
+  const srv = new VivariumServer({ world: World.fromMap(loadMap(OFFICE_MAP)), store: s, port: 0, tickMs: 50, signup: true, trustProxy: true });
+  const { port } = await srv.start();
+  const url = `http://127.0.0.1:${port}`;
+  const from = (ip: string) => ({ "cf-connecting-ip": ip });
+  const call = (ip: string, token: string, method: string, path: string, body?: unknown) =>
+    fetch(`${url}${path}`, {
+      method,
+      headers: { ...from(ip), ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { "content-type": "application/json" } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+
+  assert.deepEqual(await (await call("203.0.113.7", "", "GET", "/api/portal/signup")).json(), { open: true, keys_per_ip: 5, idle_days: 30 });
+  const r1 = await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "Frank" });
+  assert.equal(r1.status, 201);
+  const one = await r1.json();
+  assert.equal(one.developer, "frank");
+  assert.match(one.token, /^vivdev_/);
+  assert.equal((await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "frank" })).status, 409);
+  assert.equal((await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "<b>" })).status, 400);
+  const two = await (await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "frank2" })).json();
+
+  const keys: string[] = [];
+  for (let i = 0; i < 3; i++) keys.push((await (await call("203.0.113.7", one.token, "POST", "/api/portal/agents", { label: `k${i}` })).json()).agent_id);
+  for (let i = 0; i < 2; i++) assert.equal((await call("203.0.113.7", two.token, "POST", "/api/portal/agents", { label: `j${i}` })).status, 201);
+  const sixth = await call("203.0.113.7", two.token, "POST", "/api/portal/agents", { label: "six" });
+  assert.equal(sixth.status, 409, "a second account on the same IP gets no extra keys");
+  assert.equal((await sixth.json()).error, "ip_limit_reached");
+  const me = await (await call("203.0.113.7", one.token, "GET", "/api/portal/me")).json();
+  assert.deepEqual(me.ip_quota, { used: 5, max: 5 });
+
+  assert.equal((await call("203.0.113.7", one.token, "POST", `/api/portal/agents/${keys[0]}/revoke`)).status, 200);
+  assert.equal((await call("203.0.113.7", two.token, "POST", "/api/portal/agents", { label: "six" })).status, 201, "revoking freed a slot");
+  assert.equal((await call("198.51.100.9", two.token, "POST", "/api/portal/agents", { label: "elsewhere" })).status, 201, "another IP has its own quota");
+
+  // IPv6: one /64 is one quota.
+  const v6 = await (await call("2001:db8:1:2::1", "", "POST", "/api/portal/signup", { name: "gina" })).json();
+  for (let i = 0; i < 5; i++) assert.equal((await call(`2001:db8:1:2::${i + 10}`, v6.token, "POST", "/api/portal/agents", { label: `v${i}` })).status, 201);
+  assert.equal((await call("2001:db8:1:2:ffff::1", v6.token, "POST", "/api/portal/agents", { label: "v6" })).status, 409);
+
+  // At most 3 accounts per IP per day (two already from 203.0.113.7).
+  assert.equal((await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "frank3" })).status, 201);
+  assert.equal((await call("203.0.113.7", "", "POST", "/api/portal/signup", { name: "frank4" })).status, 429);
+
+  assert.ok(!JSON.stringify(s.listDevelopers()).includes("203.0.113.7"), "IPs are not stored in clear");
+  await srv.stop();
+  s.close();
+});
+
+test("sign-up is closed by default, and idle self-service keys are released", async () => {
+  const closed = await fetch(`${base}/api/portal/signup`, { method: "POST", headers: { "content-type": "application/json" }, body: '{"name":"henry"}' });
+  assert.equal(closed.status, 403);
+
+  const s = new Store(":memory:");
+  const tag = s.ipTag("192.0.2.1");
+  s.createDeveloper("ivan", 5, tag);
+  const old = s.createKey("ivan", "old", tag);
+  const used = s.createKey("ivan", "used", tag);
+  s.touch(used.agentId);
+  const invited = s.createKey("ivan", "no ip");
+  const released = s.releaseIdleKeys(new Date(Date.now() + 1000).toISOString());
+  assert.deepEqual(released.sort(), [old.agentId, used.agentId].sort());
+  assert.equal(s.isActive(invited.agentId), true, "keys outside the IP quota are never released");
+  assert.equal(s.releaseIdleKeys(new Date(Date.now() - 60_000).toISOString()).length, 0);
+  s.close();
+});

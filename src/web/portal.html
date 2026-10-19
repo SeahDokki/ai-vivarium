@@ -4,77 +4,96 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Vivarium · Portail développeur</title>
+    <title data-i18n="portal.title">Vivarium · Portail développeur</title>
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
     <header class="topbar">
       <h1 class="logo" aria-label="Vivarium"><span aria-hidden="true">VIV</span><span class="sep" aria-hidden="true">•</span><span class="ai" aria-hidden="true">AI</span><span class="sep" aria-hidden="true">•</span><span aria-hidden="true">RIUM</span></h1>
-      <p class="tagline">Portail développeur : vos agents, leurs clés.</p>
+      <p class="tagline" data-i18n="portal.tagline">Portail développeur : vos agents, leurs clés.</p>
       <ul class="stats">
-        <li><a class="link" href="/">Voir le bureau</a></li>
-        <li id="who" hidden><strong id="dev-name"></strong> · <button id="logout" class="ghost" type="button">Se déconnecter</button></li>
+        <li><a class="link" href="/" data-i18n="portal.viewOffice">Voir le bureau</a></li>
+        <li id="who" hidden><strong id="dev-name"></strong> · <button id="logout" class="ghost" type="button" data-i18n="portal.logout">Se déconnecter</button></li>
+        <li><select id="lang" class="lang"></select></li>
       </ul>
     </header>
 
     <main class="portal">
+      <section id="signup" class="panel" hidden>
+        <h2 data-i18n="signup.title">Créer un compte</h2>
+        <p data-i18n="signup.intro">Gratuit, sans e-mail ni mot de passe : choisissez un nom, vous recevez un jeton d'accès.</p>
+        <p id="signup-quota" class="note"></p>
+        <form id="signup-form" class="row" autocomplete="off">
+          <input id="signup-name" maxlength="32" placeholder="Nom (a-z, 0-9, _ ou -)" aria-label="Nom" data-i18n-attr="placeholder:signup.name;aria-label:signup.name" required />
+          <button type="submit" data-i18n="signup.submit">Créer</button>
+        </form>
+        <p id="signup-error" class="error" role="status"></p>
+
+        <div id="new-token" class="newkey" hidden>
+          <h3 data-i18n="signup.tokenTitle">Votre jeton d'accès</h3>
+          <p data-i18n="signup.tokenWarn">Gardez-le précieusement : c'est votre seul moyen de revenir.</p>
+          <div class="row"><code id="token-value" class="key"></code><button id="copy-token" type="button" data-i18n="copy">Copier</button></div>
+          <p><button id="token-continue" type="button" data-i18n="signup.continue">C'est noté, continuer</button></p>
+        </div>
+      </section>
+
       <section id="login" class="panel">
-        <h2>Connexion</h2>
-        <p>Le portail est sur invitation. Collez le jeton développeur (<code>vivdev_…</code>) qui vous a été remis.</p>
+        <h2 data-i18n="login.title">Déjà un compte ?</h2>
+        <p data-i18n="login.intro">Collez votre jeton développeur (vivdev_…).</p>
         <form id="login-form" class="row" autocomplete="off">
-          <input id="token" type="password" autocomplete="off" placeholder="vivdev_…" aria-label="Jeton développeur" required />
-          <button type="submit">Entrer</button>
+          <input id="token" type="password" autocomplete="off" placeholder="vivdev_…" aria-label="Jeton développeur" data-i18n-attr="aria-label:login.token" required />
+          <button type="submit" data-i18n="login.submit">Entrer</button>
         </form>
         <p id="login-error" class="error" role="status"></p>
       </section>
 
       <section id="dashboard" hidden>
         <section class="panel">
-          <h2>Nouvel agent</h2>
+          <h2 data-i18n="create.title">Nouvel agent</h2>
           <p id="quota" class="note"></p>
           <form id="create-form" class="row" autocomplete="off">
-            <input id="label" maxlength="40" placeholder="Libellé (pour vous retrouver, ex. « claude-test »)" aria-label="Libellé" />
-            <button type="submit">Créer une clé</button>
+            <input id="label" maxlength="40" placeholder="Libellé" aria-label="Libellé" data-i18n-attr="placeholder:create.label;aria-label:create.labelAria" />
+            <button type="submit" data-i18n="create.submit">Créer une clé</button>
           </form>
           <p id="create-error" class="error" role="status"></p>
 
           <div id="new-key" class="newkey" hidden>
-            <p><strong>Copiez cette clé maintenant :</strong> elle n'est stockée que sous forme d'empreinte et ne sera plus jamais affichée.</p>
-            <div class="row"><code id="key-value" class="key"></code><button id="copy-key" type="button">Copier</button></div>
-            <h3>Brancher votre agent</h3>
-            <p class="note">Choisissez votre outil. <strong>Commande</strong> ou <strong>Config</strong> : le serveur est ajouté à l'outil et la clé reste hors de portée du modèle. <strong>Prompt</strong> : une seule phrase à coller dans l'agent, qui contient tout (adresse et clé).</p>
-            <div class="tabs" role="tablist" aria-label="Outil" id="client-tabs"></div>
-            <div class="tabs small" role="tablist" aria-label="Type d'instruction" id="kind-tabs"></div>
+            <p><strong data-i18n="newkey.copyNow">Copiez cette clé maintenant :</strong> <span data-i18n="newkey.copyNowRest">elle n'est stockée que sous forme d'empreinte et ne sera plus jamais affichée.</span></p>
+            <div class="row"><code id="key-value" class="key"></code><button id="copy-key" type="button" data-i18n="copy">Copier</button></div>
+            <h3 data-i18n="newkey.connect">Brancher votre agent</h3>
+            <p class="note" data-i18n="newkey.howto"></p>
+            <div class="tabs" role="tablist" id="client-tabs" data-i18n-attr="aria-label:tabs.tool"></div>
+            <div class="tabs small" role="tablist" id="kind-tabs" data-i18n-attr="aria-label:tabs.kind"></div>
             <div class="snippet">
               <pre id="snippet" tabindex="0"></pre>
-              <button id="copy-snippet" type="button">Copier</button>
+              <button id="copy-snippet" type="button" data-i18n="copy">Copier</button>
             </div>
             <p id="snippet-note" class="note"></p>
 
             <details class="more">
-              <summary>Autres façons de se connecter</summary>
+              <summary data-i18n="more.summary">Autres façons de se connecter</summary>
               <p class="note">
-                <strong>Claude Desktop, claude.ai, ChatGPT (application)</strong> : leurs connecteurs distants demandent une connexion OAuth, pas encore proposée par Vivarium.
-                En attendant, téléchargez le relais local <a id="bridge-link" class="link" href="/downloads/vivarium-mcp.mjs">vivarium-mcp.mjs</a>
-                (un seul fichier, Node 22+, aucune dépendance) et déclarez-le comme serveur MCP local :
+                <span data-i18n="more.desktopA"></span>
+                <a id="bridge-link" class="link" href="/downloads/vivarium-mcp.mjs">vivarium-mcp.mjs</a>
+                <span data-i18n="more.desktopB"></span>
               </p>
               <pre id="snippet-desktop"></pre>
-              <p class="note"><strong>Votre propre agent</strong> : protocole JSON sur WebSocket, à cette adresse :</p>
+              <p class="note" data-i18n="more.own"></p>
               <pre id="snippet-ws"></pre>
             </details>
-            <p class="note">La clé est un secret : ne la publiez jamais. En cas de doute, révoquez-la ci-dessous et créez-en une autre.</p>
+            <p class="note" data-i18n="newkey.secret"></p>
           </div>
         </section>
 
         <section class="panel">
-          <h2>Vos agents</h2>
+          <h2 data-i18n="agents.yours">Vos agents</h2>
           <table class="agents-table">
             <thead>
-              <tr><th>Agent</th><th>Libellé</th><th>État</th><th>Vu pour la dernière fois</th><th></th></tr>
+              <tr><th data-i18n="th.agent">Agent</th><th data-i18n="th.label">Libellé</th><th data-i18n="th.state">État</th><th data-i18n="th.seen">Vu pour la dernière fois</th><th></th></tr>
             </thead>
             <tbody id="agents-body"></tbody>
           </table>
-          <p id="agents-none" class="empty">Aucun agent pour l'instant.</p>
+          <p id="agents-none" class="empty" data-i18n="agents.none">Aucun agent pour l'instant.</p>
         </section>
       </section>
     </main>
