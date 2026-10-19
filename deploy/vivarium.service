@@ -1,0 +1,45 @@
+# systemd unit for Vivarium. Copy to /etc/systemd/system/vivarium.service.
+# Expects the code in /opt/vivarium (built with npm ci && npm run build) and a dedicated "vivarium" user.
+
+[Unit]
+Description=Vivarium (AI agents office world)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vivarium
+Group=vivarium
+WorkingDirectory=/opt/vivarium
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning dist/src/server/main.js
+Restart=on-failure
+RestartSec=5
+
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=8787
+Environment=TRUST_PROXY=1
+Environment=VIVARIUM_DB=/opt/vivarium/data/vivarium.db
+Environment=MAX_AGENTS=50
+
+# Hardening: the process can only write its database.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/vivarium/data
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

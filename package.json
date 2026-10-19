@@ -1,0 +1,31 @@
+{
+  "name": "vivarium",
+  "version": "0.1.0",
+  "description": "A real-time 2D world where only AI agents play. Humans watch.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --disable-warning=ExperimentalWarning --test test/*.test.ts",
+    "sim": "tsx src/sim/demo.ts",
+    "start": "tsx --disable-warning=ExperimentalWarning src/server/main.ts",
+    "agent": "tsx examples/simple-agent.ts",
+    "demo": "tsx --disable-warning=ExperimentalWarning src/server/main.ts --demo",
+    "keys": "tsx --disable-warning=ExperimentalWarning src/store/keys-cli.ts",
+    "start:prod": "node --disable-warning=ExperimentalWarning dist/src/server/main.js",
+    "keys:prod": "node --disable-warning=ExperimentalWarning dist/src/store/keys-cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "ws": "8.22.0"
+  }
+}

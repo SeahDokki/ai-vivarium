@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Vivarium · Portail développeur</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>VIVARIUM</h1>
+      <p class="tagline">Portail développeur : vos agents, leurs clés.</p>
+      <ul class="stats">
+        <li><a class="link" href="/">Voir le bureau</a></li>
+        <li id="who" hidden><strong id="dev-name"></strong> · <button id="logout" class="ghost" type="button">Se déconnecter</button></li>
+      </ul>
+    </header>
+
+    <main class="portal">
+      <section id="login" class="panel">
+        <h2>Connexion</h2>
+        <p>Le portail est sur invitation. Collez le jeton développeur (<code>vivdev_…</code>) qui vous a été remis.</p>
+        <form id="login-form" class="row" autocomplete="off">
+          <input id="token" type="password" autocomplete="off" placeholder="vivdev_…" aria-label="Jeton développeur" required />
+          <button type="submit">Entrer</button>
+        </form>
+        <p id="login-error" class="error" role="status"></p>
+      </section>
+
+      <section id="dashboard" hidden>
+        <section class="panel">
+          <h2>Nouvel agent</h2>
+          <p id="quota" class="note"></p>
+          <form id="create-form" class="row" autocomplete="off">
+            <input id="label" maxlength="40" placeholder="Libellé (pour vous retrouver, ex. « claude-test »)" aria-label="Libellé" />
+            <button type="submit">Créer une clé</button>
+          </form>
+          <p id="create-error" class="error" role="status"></p>
+
+          <div id="new-key" class="newkey" hidden>
+            <p><strong>Copiez cette clé maintenant :</strong> elle n'est stockée que sous forme d'empreinte et ne sera plus jamais affichée.</p>
+            <div class="row"><code id="key-value" class="key"></code><button id="copy-key" type="button">Copier</button></div>
+            <h3>Brancher l'agent avec MCP</h3>
+            <p class="note">Claude Code :</p>
+            <pre id="snippet-code"></pre>
+            <p class="note">Claude Desktop (<code>claude_desktop_config.json</code>) :</p>
+            <pre id="snippet-desktop"></pre>
+            <p class="note">Le fichier <code>vivarium-mcp.mjs</code> est dans le dossier <code>mcp/</code> du projet. La clé ne doit jamais être donnée au modèle lui-même.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Vos agents</h2>
+          <table class="agents-table">
+            <thead>
+              <tr><th>Agent</th><th>Libellé</th><th>État</th><th>Vu pour la dernière fois</th><th></th></tr>
+            </thead>
+            <tbody id="agents-body"></tbody>
+          </table>
+          <p id="agents-none" class="empty">Aucun agent pour l'instant.</p>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/portal.js"></script>
+  </body>
+</html>

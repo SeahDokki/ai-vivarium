@@ -1,0 +1,422 @@
+:root {
+  --bg: #12101c;
+  --panel: #1d1a2c;
+  --panel-edge: #34304d;
+  --ink: #ece8ff;
+  --muted: #9a94bb;
+  --accent: #f8b800;
+  --good: #3fd16a;
+  --bad: #ff5a5a;
+  --human: #5ad1e8;
+  --font: "Cascadia Mono", "Consolas", "DejaVu Sans Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--font);
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 20px;
+  padding: 14px 16px;
+  border-bottom: 2px solid var(--panel-edge);
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  text-shadow: 2px 2px 0 #8a3b00;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+
+.stats strong {
+  color: var(--ink);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  background: var(--bad);
+}
+
+.dot.on {
+  background: var(--good);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  padding: 16px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.stage {
+  min-width: 0;
+}
+
+.screen {
+  background: #000;
+  border: 4px solid var(--panel-edge);
+  box-shadow: 0 0 0 4px #000;
+  line-height: 0;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  padding: 12px;
+  min-height: 0;
+}
+
+.panel.grow {
+  flex: none;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent);
+}
+
+.note {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--human);
+}
+
+.agents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.agents li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.agents canvas {
+  width: 32px;
+  height: 32px;
+  flex: none;
+}
+
+.agents .zone {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.log {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 80px;
+  max-height: 220px;
+  word-wrap: break-word;
+}
+
+.log li {
+  padding: 3px 0;
+  border-bottom: 1px dashed #2a2640;
+}
+
+.log .who {
+  font-weight: 700;
+}
+
+.log .meta {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.human .who {
+  color: var(--human);
+}
+
+.empty {
+  margin: 4px 0;
+  color: var(--muted);
+  font-style: italic;
+}
+
+form {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) auto;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+input,
+button {
+  font: inherit;
+  color: var(--ink);
+  background: #0d0b16;
+  border: 2px solid var(--panel-edge);
+  padding: 6px 8px;
+  min-width: 0;
+}
+
+input:focus,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+}
+
+button {
+  background: var(--accent);
+  color: #1a1020;
+  font-weight: 700;
+  border-color: #8a5a00;
+  cursor: pointer;
+}
+
+.error {
+  min-height: 1.2em;
+  margin: 6px 0 0;
+  color: var(--bad);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .stats {
+    margin-left: 0;
+  }
+  form {
+    grid-template-columns: 1fr 1fr;
+  }
+  form button {
+    grid-column: span 2;
+  }
+}
+
+.log .moderation .who {
+  color: var(--bad);
+}
+
+.log .moderation .text {
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- portal */
+
+.portal {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.portal #dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.portal #dashboard[hidden],
+.portal [hidden] {
+  display: none !important;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.row input {
+  flex: 1 1 260px;
+}
+
+.portal form {
+  display: flex;
+  grid-template-columns: none;
+}
+
+h3 {
+  margin: 16px 0 4px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+code,
+pre {
+  font-family: var(--font);
+  background: #0d0b16;
+  border: 1px solid var(--panel-edge);
+}
+
+code {
+  padding: 1px 4px;
+}
+
+pre {
+  margin: 4px 0 8px;
+  padding: 8px;
+  overflow-x: auto;
+  white-space: pre;
+  font-size: 12px;
+}
+
+.key {
+  flex: 1 1 300px;
+  padding: 6px 8px;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.newkey {
+  margin-top: 12px;
+  padding: 12px;
+  border: 2px dashed var(--accent);
+}
+
+.link {
+  color: var(--human);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: var(--panel-edge);
+  font-weight: 400;
+  padding: 2px 8px;
+}
+
+button.danger {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.agents-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.agents-table th,
+.agents-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px dashed #2a2640;
+  vertical-align: middle;
+}
+
+.agents-table th {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.agent-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agent-cell canvas {
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+.agent-cell .id {
+  width: 100%;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.state.online {
+  color: var(--good);
+}
+
+.state.offline {
+  color: var(--muted);
+}
+
+.state.revoked {
+  color: var(--bad);
+}
+
+@media (max-width: 700px) {
+  .agents-table thead {
+    display: none;
+  }
+  .agents-table tr {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px dashed #2a2640;
+  }
+  .agents-table td {
+    display: block;
+    border: 0;
+    padding: 2px 0;
+  }
+}
