@@ -1,6 +1,8 @@
 # Test, build and deploy to the Ubuntu server on every push to main (a merged PR is a push).
 # The server never sees the repository: the runner builds, copies the result with rsync and restarts the service.
-# One-time server setup: deploy/setup-server.sh. Secrets: DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS (DEPLOY_PORT optional).
+# SSH goes through a Cloudflare Tunnel protected by Cloudflare Access: no inbound port, the server IP is never used here.
+# Only push to main triggers it: pull requests (forks included) never run it nor see its secrets.
+# One-time setup: deploy/DEPLOY.md. Secrets: DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS, CF_ACCESS_CLIENT_ID, CF_ACCESS_CLIENT_SECRET.
 
 name: Deploy
 
@@ -42,33 +44,52 @@ jobs:
       # Ship only runtime dependencies (ws, pure JS): the server needs Node and nothing else.
       - run: npm prune --omit=dev
 
-      - name: SSH key and pinned host key
+      # cloudflared pinned by version and checksum.
+      - name: cloudflared
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/cloudflared" \
+            https://github.com/cloudflare/cloudflared/releases/download/2026.10.1/cloudflared-linux-amd64
+          echo "3bfc539f45d2620c71debb7a86be0efa737ed5ccbad9eb85c787116900e5c586  $RUNNER_TEMP/cloudflared" | sha256sum -c -
+          chmod +x "$RUNNER_TEMP/cloudflared"
+
+      - name: SSH through the tunnel, pinned host key
         env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        # The Access service token reaches cloudflared through the environment (TUNNEL_SERVICE_TOKEN_*), never the command line.
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config << EOF
+          Host server
+            HostName $HOST
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ProxyCommand $RUNNER_TEMP/cloudflared access ssh --hostname %h
+          EOF
+          chmod 600 ~/.ssh/config
 
       - name: Copy to the server
         env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         # data/ (database) and .env (server settings) live only on the server: excluded, so never overwritten or deleted.
         run: |
           rsync -rlptz --delete --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r \
             --exclude=/.git/ --exclude=/.github/ --exclude=/data/ --exclude=/.env \
-            -e "ssh -i ~/.ssh/deploy_key -p $PORT -o StrictHostKeyChecking=yes" \
-            ./ "$DEPLOY_USER@$HOST:$DEPLOY_DIR/"
+            ./ "server:$DEPLOY_DIR/"
 
       - name: Restart and check
         env:
-          HOST: ${{ secrets.DEPLOY_HOST }}
-          PORT: ${{ secrets.DEPLOY_PORT || '22' }}
+          TUNNEL_SERVICE_TOKEN_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          TUNNEL_SERVICE_TOKEN_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          ssh -i ~/.ssh/deploy_key -p "$PORT" -o StrictHostKeyChecking=yes "$DEPLOY_USER@$HOST" '
+          ssh server '
             set -e
             sudo -n /usr/bin/systemctl restart vivarium
             for i in $(seq 1 15); do
@@ -82,4 +103,4 @@ jobs:
 
       - name: Remove the key
         if: always()
-        run: rm -f ~/.ssh/deploy_key
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/config

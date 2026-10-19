@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # One-time server setup for automatic deploys (.github/workflows/deploy.yml). Run as a sudoer:
-#   sudo bash deploy/setup-server.sh https://vivairium.seah.world <ssh host as GitHub reaches it> [ssh port]
+#   sudo bash deploy/setup-server.sh https://vivairium.seah.world <SSH hostname of the Cloudflare Tunnel>
+# The SSH hostname is the tunnel's public hostname for ssh://localhost:22 (deploy/DEPLOY.md), never the server IP.
 # Safe to run again: existing users, keys, .env and data are kept.
 set -euo pipefail
 
-PUBLIC_URL="${1:?usage: setup-server.sh <PUBLIC_URL> <ssh host> [ssh port]}"
-SSH_HOST="${2:?usage: setup-server.sh <PUBLIC_URL> <ssh host> [ssh port]}"
-SSH_PORT="${3:-22}"
+PUBLIC_URL="${1:?usage: setup-server.sh <PUBLIC_URL> <tunnel SSH hostname>}"
+SSH_HOST="${2:?usage: setup-server.sh <PUBLIC_URL> <tunnel SSH hostname>}"
 APP_DIR=/var/www/seah.world/vivarium
 DEPLOY_USER=deploy
 SERVICE_USER=vivarium
@@ -22,6 +22,7 @@ if [ ! -x /usr/bin/node ] || ! /usr/bin/node -e 'const [a,b]=process.versions.no
 fi
 command -v rsync > /dev/null || apt-get install -y rsync
 command -v curl > /dev/null || apt-get install -y curl
+[ -f /etc/ssh/ssh_host_ed25519_key.pub ] || { echo "No ed25519 SSH host key (/etc/ssh/ssh_host_ed25519_key.pub)." >&2; exit 1; }
 
 # Users: "deploy" copies files and may only restart the service; "vivarium" runs it and owns the database.
 id "$SERVICE_USER" > /dev/null 2>&1 || adduser --system --group --no-create-home --home "$APP_DIR" "$SERVICE_USER"
@@ -64,20 +65,20 @@ chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_HOME/.ssh/authorized_keys"
 chmod 600 "$DEPLOY_HOME/.ssh/authorized_keys"
 
 # known_hosts line so the workflow only talks to this server.
-if [ "$SSH_PORT" = 22 ]; then KH_HOST="$SSH_HOST"; else KH_HOST="[$SSH_HOST]:$SSH_PORT"; fi
-KNOWN_HOSTS="$KH_HOST $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+KNOWN_HOSTS="$SSH_HOST $(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
 
 echo
 echo "Server ready. Add these secrets in GitHub: repo > Settings > Secrets and variables > Actions"
-echo "  DEPLOY_HOST         $SSH_HOST"
-[ "$SSH_PORT" = 22 ] || echo "  DEPLOY_PORT         $SSH_PORT"
-echo "  DEPLOY_KNOWN_HOSTS  $KNOWN_HOSTS"
+echo "  DEPLOY_HOST              $SSH_HOST"
+echo "  DEPLOY_KNOWN_HOSTS       $KNOWN_HOSTS"
 if [ -n "$KEY_OUT" ]; then
-  echo "  DEPLOY_SSH_KEY      the whole content of $KEY_OUT"
-  echo "                      sudo cat $KEY_OUT   # copy it, then: sudo rm -r $(dirname "$KEY_OUT")"
+  echo "  DEPLOY_SSH_KEY           the whole content of $KEY_OUT"
+  echo "                           sudo cat $KEY_OUT   # copy it, then: sudo rm -r $(dirname "$KEY_OUT")"
 else
-  echo "  DEPLOY_SSH_KEY      (already set up earlier; to replace it, remove the github-actions-vivarium line"
-  echo "                      from $DEPLOY_HOME/.ssh/authorized_keys and run this script again)"
+  echo "  DEPLOY_SSH_KEY           (already set up earlier; to replace it, remove the github-actions-vivarium line"
+  echo "                           from $DEPLOY_HOME/.ssh/authorized_keys and run this script again)"
 fi
+echo "  CF_ACCESS_CLIENT_ID      Client ID of the Cloudflare Access service token"
+echo "  CF_ACCESS_CLIENT_SECRET  Client Secret of the same token"
 echo
 echo "Then run the Deploy workflow (Actions tab > Deploy > Run workflow) or push to main."
