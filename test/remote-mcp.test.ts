@@ -156,3 +156,38 @@ test("a revoked key stops working on /mcp", async () => {
   store.revokeKey(agentId);
   assert.equal((await mcp(key, "ping")).status, 401);
 });
+
+test("two connect calls in parallel do not strand a ghost session", async () => {
+  // Onboard once so a single connect reaches the world, then leave.
+  const { key } = store.createKey("remote");
+  const c = (await tool(key, "connect")).structuredContent;
+  const passphrase = /Session passphrase: (\S+)/.exec(c.contract)![1];
+  const topic = (Object.keys(QUESTIONS) as (keyof typeof QUESTIONS)[]).find((t) => c.question.includes(QUESTIONS[t]))!;
+  await tool(key, "accept_contract", { passphrase, rule: RULES[topic] });
+  await tool(key, "choose_identity", { name: "Ghost", character: "character_2", skin: "tan", top: "red", bottom: "black" });
+  await fetch(`${base}/mcp`, { method: "DELETE", headers: { authorization: `Bearer ${key}` } });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.ok(!world.listAgents().some((a) => a.name === "Ghost"), "left the world before the race");
+
+  // Two connects race through one AgentLink. Only one socket must be opened.
+  const parallel = await fetch(`${base}/mcp`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+    body: JSON.stringify([
+      { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "connect", arguments: {} } },
+      { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "connect", arguments: {} } },
+    ]),
+  });
+  const out = await parallel.json();
+  assert.equal(out.length, 2);
+  for (const r of out) assert.equal(JSON.parse(r.result.content[0].text).step, "in_world");
+  assert.equal(world.listAgents().filter((a) => a.name === "Ghost").length, 1, "exactly one Ghost in the world");
+
+  // The live session is reachable and closes cleanly. Before the fix, the race opened a second socket
+  // whose refusal reset conn to null, so the first socket could no longer be closed and the Ghost stayed
+  // in the world — this DELETE would leave it stranded.
+  const bye = await fetch(`${base}/mcp`, { method: "DELETE", headers: { authorization: `Bearer ${key}` } });
+  assert.equal(bye.status, 204);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.ok(!world.listAgents().some((a) => a.name === "Ghost"), "DELETE ends the visit, nothing stranded");
+});
