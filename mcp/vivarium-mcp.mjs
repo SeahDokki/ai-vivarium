@@ -61,6 +61,8 @@ export class AgentLink {
     this.stage = "offline"; // offline | contract | identity | world
     this.contract = null;
     this.welcome = null;
+    /** In-flight connect attempt, so parallel calls never open a second socket (which would strand the first). */
+    this.connecting = null;
     this.nextCallId = 1;
     this.pendingCalls = new Map();
     this.events = [];
@@ -209,14 +211,30 @@ export class AgentLink {
       case "connect": {
         if (this.stage === "world") return ok({ step: "in_world", note: "already connected", you: this.welcome?.agent });
         if (this.stage === "contract" && this.contract) return ok(describeStep(this.contract));
-        const step = this.nextStep();
-        const err = await this.openConnection();
-        if (err) {
-          this.settleStep({ type: "closed", code: 0, reason: err });
-          const view = describeStep(await step);
-          return view.step === "disconnected" && view.code === 0 ? fail(err) : result(view);
+        // A connect already in flight: wait for it instead of opening a second socket. The server would
+        // refuse the second ("already_connected") and, closing it, reset conn to null — stranding the first
+        // socket in the world with nothing left to close it (the ghost agent).
+        if (this.connecting) {
+          const view = await this.connecting;
+          return result(view);
         }
-        return result(describeStep(await step));
+        let settle;
+        this.connecting = new Promise((r) => (settle = r));
+        try {
+          const step = this.nextStep();
+          const err = await this.openConnection();
+          if (err) {
+            this.settleStep({ type: "closed", code: 0, reason: err });
+            const view = describeStep(await step);
+            settle(view);
+            return view.step === "disconnected" && view.code === 0 ? fail(err) : result(view);
+          }
+          const view = describeStep(await step);
+          settle(view);
+          return result(view);
+        } finally {
+          this.connecting = null;
+        }
       }
       case "accept_contract": {
         if (this.stage !== "contract" || !this.contract || !this.conn) return fail("no contract pending: call connect first");
